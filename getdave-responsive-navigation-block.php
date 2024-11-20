@@ -40,6 +40,8 @@ function init() {
 	add_action( 'enqueue_block_assets', __NAMESPACE__ . '\enqueue_block_assets' );
 	add_action( 'admin_init', __NAMESPACE__ . '\register_settings' );
 	add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
+	add_filter( 'default_wp_template_part_areas', __NAMESPACE__ . '\template_part_areas' );
+	add_filter( 'render_block_core/navigation', __NAMESPACE__ . '\display_template_part', 10, 2 );
 }
 
 
@@ -229,6 +231,69 @@ function settings_field_unit_callback() {
 		<option value="vw" <?php selected( $unit, 'vw' ); ?>>vw</option>
 	</select>
 	<?php
+}
+
+/**
+ * Adds a custom template part area for mega menus to the list of template part areas.
+ *
+ * This function introduces a new area specifically for menu templates. 
+ * The new area is appended to the existing list of template part areas.
+ * 
+ * @see https://developer.wordpress.org/reference/hooks/default_wp_template_part_areas/
+ *
+ * @param array $areas Existing array of template part areas.
+ * @return array Modified array of template part areas including the new mega menu area.
+ */
+function template_part_areas( array $areas ) {
+	$areas[] = array(
+		'area'        => 'menu',
+		'area_tag'    => 'div',
+		'description' => __( 'Menu templates are used for more complex layouts.', 'getdave-responsive-navigation-block' ),
+		'icon' 		  => 'layout',
+		'label'       => __( 'Menu', 'getdave-responsive-navigation-block' ),
+	);
+
+	return $areas;
+}
+
+// Include the Simple HTML DOM parser
+require __DIR__ . '/vendor/autoload.php'; 
+
+use voku\helper\HtmlDomParser;
+
+function replaceDivContentWithSimpleHTMLDOM($html, $newContent) {
+    // Load the HTML string into the Simple HTML DOM object
+    $htmlDoc = HtmlDomParser::str_get_html($html);
+
+    // Find the div with the class wp-block-navigation__responsive-container-content
+    $div = $htmlDoc->find('div.wp-block-navigation__responsive-container-content', 0);
+
+    // If the div is found, replace its inner content
+    if ($div) {
+        $div->innertext = $newContent;
+    }
+
+    // Return the updated HTML
+    return $htmlDoc->save();
+}
+
+function display_template_part( $block_content, $block ) {
+	if ( $block['blockName'] === 'core/navigation' ) {
+		if( 
+			array_key_exists( 'className', $block['attrs'] ) 
+			&& str_contains( $block['attrs']['className'], GDRNB_MOBILE_NAV_CLASS ) 
+			&& array_key_exists( 'overlayMenu', $block['attrs'] ) 
+			&& $block['attrs']['overlayMenu'] === 'always'
+			&& array_key_exists( 'menuSlug', $block['attrs'] )
+			&& ! empty( $block['attrs']['menuSlug'] )
+		) {
+			ob_start();
+			block_template_part( $block['attrs']['menuSlug'] );
+			$template_markup = ob_get_clean();
+			return replaceDivContentWithSimpleHTMLDOM( $block_content, $template_markup );
+		}
+	}
+	return $block_content;
 }
 
 // Handle uninstallation.

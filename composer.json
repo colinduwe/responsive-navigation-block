@@ -1,0 +1,9 @@
+{
+    "name": "getdave/responsive-navigation-block",
+    "description": "This Plugin allows you to display and apply alternative styling to different navigation menus based on the screen size using the WordPress Navigation block.",
+    "type": "wordpress-plugin",
+    "minimum-stability": "beta",
+    "require": {
+        "voku/simple_html_dom": "^4.8"
+    }
+}
